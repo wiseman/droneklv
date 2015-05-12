@@ -1,6 +1,6 @@
-(defproject com.lemondronor/uasklv "0.1.0-SNAPSHOT"
+(defproject com.lemondronor/droneklv "0.1.0-SNAPSHOT"
   :description "FIXME: write description"
-  :url "http://example.com/FIXME"
+  :url "https:///github.com/wiseman/droneklv"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[com.lemonodor/xio "0.2.2"]
