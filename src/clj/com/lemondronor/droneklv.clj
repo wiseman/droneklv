@@ -1,9 +1,9 @@
 (ns com.lemondronor.droneklv
-  ""
+  "Work with KLV metadata frome drone video."
   (:require [clojure.pprint :as pprint]
             [clojure.string :as string]
             [com.lemonodor.xio :as xio])
-  (:import [com.lemondronor.klv KLV]
+  (:import [com.lemondronor.droneklv KLV KLV$KeyLength KLV$LengthEncoding]
            [java.util Arrays]))
 
 (set! *warn-on-reflection* true)
@@ -128,13 +128,13 @@
    data
    0
    (count data)
-   com.lemondronor.klv.KLV$KeyLength/SixteenBytes
-   com.lemondronor.klv.KLV$LengthEncoding/BER))
+   KLV$KeyLength/SixteenBytes
+   KLV$LengthEncoding/BER))
 
 
 (defn decode [^bytes data]
   (let [klvs (klvs-from-bytes data)]
-    (map (fn [klv]
+    (map (fn [^KLV klv]
            (let [[tag desc _] (find-klv-signature (.getFullKey ^KLV klv))]
              (cond
                (nil? tag)
@@ -145,34 +145,6 @@
                :else
                [tag (bytes->hex (.getValue klv))])))
          klvs)))
-
-
-;;(com.lemondronor.klv.KLV/bytesToList (byte-array (ints->bytes '(0x06 0x0e 0x2b 0x34 0x02 0x01 0x01 0x01 0x0e 0x01 0x01 0x02 0x01 0x01 0x00 0x00 0x82 0x02 0x17))) 0 )
-
-
-;;(def data (uasklv/ints->bytes '(0x06 0x0e 0x2b 0x34 0x02 0x01 0x01 0x01 0x0e 0x01 0x01 0x02 0x01 0x01 0x00 0x00 0x82 0x02 0x17)))
-;; (com.lemondronor.klv.KLV/bytesToList (byte-array data) 0 (count data) com.lemondronor.klv.KLV$KeyLength/SixteenBytes com.lemondronor.klv.KLV$LengthEncoding/BER)
-(comment
-  (require '[com.lemondronor.uasklv :as klv])
-  (require '[com.lemonodor.xio :as xio])
-  (def data (xio/binary-slurp "/users/wiseman/src/lapd/out.klv"))
-  (def klvs
-    (com.lemondronor.klv.KLV/bytesToList
-     (byte-array data)
-     0
-     (count data)
-     com.lemondronor.klv.KLV$KeyLength/SixteenBytes
-     com.lemondronor.klv.KLV$LengthEncoding/BER))
-  (def klvs2
-    (com.lemondronor.klv.KLV/bytesToList
-     (.getValue (first klvs))
-     0
-     (count (.getValue (first klvs)))
-     com.lemondronor.klv.KLV$KeyLength/SixteenBytes
-     com.lemondronor.klv.KLV$LengthEncoding/BER))
-
-  (com.lemondronor.uasklv/find-klv-signature (.getFullKey (first klvs)))
-  )
 
 
 (defn -main [& args]
