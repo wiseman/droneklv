@@ -10,6 +10,15 @@ Datalink Local Set",
 
 ## Usage
 
+![Drone video with KLV](/images/drone-klv-still.jpg?raw=true "Drone video with KLV)
+
+First find a video from a drone with embedded KLV data. The image
+above is from
+http://samples.ffmpeg.org/MPEG2/mpegts-klv/Day%20Flight.mpg
+
+Download the video, and use `ffmpeg` to extract the KLV stream. Then
+run com.lemondronor.droneklv on the extracted KLV.
+
 ```
 $ curl -O http://samples.ffmpeg.org/MPEG2/mpegts-klv/Day%20Flight.mpg
 $ ffmpeg -i Day\ Flight.mpg -map data-re -codec copy -f data out.klv
