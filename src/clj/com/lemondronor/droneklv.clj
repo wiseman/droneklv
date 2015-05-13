@@ -2,7 +2,9 @@
   "Work with KLV metadata frome drone video."
   (:require [clojure.pprint :as pprint]
             [clojure.string :as string]
-            [com.lemonodor.xio :as xio])
+            [com.lemonodor.xio :as xio]
+            [gloss.core :as gloss]
+            [gloss.io])
   (:import [com.lemondronor.droneklv KLV KLV$KeyLength KLV$LengthEncoding]
            [java.util Arrays]))
 
@@ -117,10 +119,85 @@
       nil)))
 
 
+(defn scaler [src-min src-max dst-min dst-max]
+  #(float
+    (+ (* (/ (- % src-min)
+             (- src-max src-min))
+          (- dst-max dst-min))
+       dst-min)))
+
+
+(def local-set-tags
+  (into
+   {}
+   (map
+    (fn [[tag [desc & codec-args]]]
+      [tag
+       [desc
+        (apply gloss/compile-frame codec-args)]])
+    {1 [:checksum :uint16]
+     2 [:unix-timestamp :uint64]
+     3 [:mission-id :string]
+     4 [:platform-tail-number :string]
+     5 [:platform-heading :uint16 nil (scaler 0 65535 0 360)]
+     6 [:platform-pitch :uint16 nil (scaler -32767 32767 -20 20)]
+     7 [:platform-roll :uint16 nil (scaler -32767 32767 -50 50)]
+     8 [:platform-true-airspeed :ubyte]
+     9 [:platform-indicated-airspeed :ubyte]
+     10 [:platform-designation (gloss/string :utf-8)]
+     11 [:image-source-sensor (gloss/string :utf-8)]
+     12 [:image-coordinate-system (gloss/string :utf-8)]
+     13 [:sensor-lat :int32 nil (scaler -2147483647 2147483647 -90 90)]
+     14 [:sensor-lon :int32 nil (scaler -2147483647 2147483647 -180 180)]
+     15 [:sensor-true-alt :uint16 nil (scaler 0 65535 -900 19000)]
+     16 [:sensor-horizontal-fov :uint16 nil (scaler 0 65535 0 180)]
+     17 [:sensor-vertical-fov :uint16 nil (scaler 0 65535 0 180)]
+     18 [:sensor-relative-azimuth :uint32 nil (scaler 0 4294967295 0 360)]
+     19 [:sensor-relative-elevation :uint16 nil (scaler -2147483647 2147483647 -180 180)]
+     20 [:sensor-relative-roll :uint32 nil (scaler 0 4294967295 0 360)]
+     21 [:slant-range :uint32 nil (scaler 0 4294967295 0 5000000)]
+     22 [:target-width :uint16 nil (scaler 0 65535 0 10000)]
+     23 [:frame-center-lat :int32 nil (scaler -2147483647 2147483647 -90 90)]
+     24 [:frame-center-lon :int32 nil (scaler -2147483647 2147483647 -180 180)]
+     25 [:frame-center-elevation :uint16 nil (scaler 0 65535 -900 19000)]
+
+     65 [:uas-ls-version-number :ubyte]
+     })))
+
+
+(defn read-ber [data offset]
+  ;; FIXME: Handle > 127.
+  [(get data offset)
+   (inc offset)])
+
+
 (defn bytes->hex [^bytes data]
   (string/join
    " "
    (map #(format "%x" %) (bytes->ints data))))
+
+
+(defn parse-local-set
+  ([data]
+   (parse-local-set data 0))
+  ([data offset]
+   (loop [offset offset
+          values '()]
+     (if (>= offset (count data))
+       (reverse values)
+       (let [[tag-num offset] (read-ber data offset)
+             [tag codec] (get local-set-tags tag-num)
+             [len offset] (read-ber data offset)
+             value (byte-array len)]
+         (System/arraycopy data offset value 0 len)
+         (recur
+          (+ offset len)
+          (conj
+           values
+           [(or tag tag-num)
+            (if codec
+              (gloss.io/decode codec value false)
+              value)])))))))
 
 
 (defn klvs-from-bytes [^bytes data]
@@ -138,10 +215,12 @@
            (let [[tag desc _] (find-klv-signature (.getFullKey ^KLV klv))]
              (cond
                (nil? tag)
-               "*Unknown*"
-               (or (= tag :klv_basic_universal_metadata_set)
-                   (= tag :klv_uas_datalink_local_dataset))
+               (str "*Unknown* "
+                    (bytes->hex (.getFullKey klv)) ":" (bytes->hex (.getValue klv)))
+               (= tag :klv_basic_universal_metadata_set)
                [tag (decode (.getValue klv))]
+               (= tag :klv_uas_datalink_local_dataset)
+               [tag (parse-local-set (.getValue klv))]
                :else
                [tag (bytes->hex (.getValue klv))])))
          klvs)))
