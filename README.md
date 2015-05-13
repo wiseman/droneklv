@@ -10,7 +10,7 @@ Datalink Local Set",
 
 ## Usage
 
-![Drone video with KLV](/images/drone-klv-still.jpg?raw=true "Drone video with KLV)
+![Drone video with KLV](/images/drone-klv-still.jpg?raw=true "Drone video with KLV")
 
 First find a video from a drone with embedded KLV data. The image
 above is from
