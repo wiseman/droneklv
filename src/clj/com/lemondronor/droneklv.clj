@@ -127,6 +127,10 @@
        dst-min)))
 
 
+(def lat-scaler (scaler -2147483647 2147483647 -90 90))
+(def lon-scaler (scaler -2147483647 2147483647 -180 180))
+(def pos-delta-scaler (scaler -32767 32767 -0.075 0.075))
+
 (def local-set-tags
   (into
    {}
@@ -147,8 +151,8 @@
      10 [:platform-designation (gloss/string :utf-8)]
      11 [:image-source-sensor (gloss/string :utf-8)]
      12 [:image-coordinate-system (gloss/string :utf-8)]
-     13 [:sensor-lat :int32 nil (scaler -2147483647 2147483647 -90 90)]
-     14 [:sensor-lon :int32 nil (scaler -2147483647 2147483647 -180 180)]
+     13 [:sensor-lat :int32 nil lat-scaler]
+     14 [:sensor-lon :int32 nil lon-scaler]
      15 [:sensor-true-alt :uint16 nil (scaler 0 65535 -900 19000)]
      16 [:sensor-horizontal-fov :uint16 nil (scaler 0 65535 0 180)]
      17 [:sensor-vertical-fov :uint16 nil (scaler 0 65535 0 180)]
@@ -157,10 +161,20 @@
      20 [:sensor-relative-roll :uint32 nil (scaler 0 4294967295 0 360)]
      21 [:slant-range :uint32 nil (scaler 0 4294967295 0 5000000)]
      22 [:target-width :uint16 nil (scaler 0 65535 0 10000)]
-     23 [:frame-center-lat :int32 nil (scaler -2147483647 2147483647 -90 90)]
-     24 [:frame-center-lon :int32 nil (scaler -2147483647 2147483647 -180 180)]
+     23 [:frame-center-lat :int32 nil lat-scaler]
+     24 [:frame-center-lon :int32 nil lon-scaler]
      25 [:frame-center-elevation :uint16 nil (scaler 0 65535 -900 19000)]
-
+     26 [:offset-corner-lat-point-1 :int16 nil pos-delta-scaler]
+     27 [:offset-corner-lon-point-1 :int16 nil pos-delta-scaler]
+     28 [:offset-corner-lat-point-2 :int16 nil pos-delta-scaler]
+     29 [:offset-corner-lon-point-2 :int16 nil pos-delta-scaler]
+     30 [:offset-corner-lat-point-3 :int16 nil pos-delta-scaler]
+     31 [:offset-corner-lon-point-3 :int16 nil pos-delta-scaler]
+     32 [:offset-corner-lat-point-4 :int16 nil pos-delta-scaler]
+     33 [:offset-corner-lon-point-4 :int16 nil pos-delta-scaler]
+     34 [:icing-detected :ubyte]
+     35 [:wind-direction :uint16 nil (scaler 0 65535 0 360)]
+     36 [:wind-speech :ubyte nil (scaler 0 255 0 100)]
      65 [:uas-ls-version-number :ubyte]
      })))
 
