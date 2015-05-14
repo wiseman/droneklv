@@ -116,4 +116,17 @@
       (is (= :sensor-relative-azimuth tag))
       ;; Spec has 160.719211474396.
       (is (a= 160.7192114369756 angle 1e-12))))
+  (testing "sensor relative elevation"
+    (let [[off [tag angle]] (droneklv/parse-local-set-tag
+                             (b [0x13 0x04 0x87 0xF8 0x4B 0x86]))]
+      (is (= 6 off))
+      (is (= :sensor-relative-elevation tag))
+      (is (a= -168.792324833941 angle 1e-12))))
+  (testing "sensor relative roll"
+    (let [[off [tag angle]] (droneklv/parse-local-set-tag
+                             (b [0x14 0x04 0x7D 0xC5 0x5E 0xCE]))]
+      (is (= 6 off))
+      (is (= :sensor-relative-roll tag))
+      ;; Spec has 176.865437690572.
+      (is (a= 176.8654376493919 angle 1e-12))))
   )
