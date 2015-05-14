@@ -17,6 +17,9 @@
         false))))
 
 
+;; These tests are taken from the examples section 8 in the the ST
+;; 0601.8 spec, "Conversions and Mappings between Metadata Types".
+
 (deftest local-set-tag-parsing
   (testing "unix timestamp"
     (let [[offset tag] (droneklv/parse-local-set-tag
@@ -88,4 +91,29 @@
       (is (= 6 off))
       (is (= :sensor-lon tag))
       (is (a= 128.426759042045 lon 1e-12))))
+  (testing "sensor true altitude"
+    (let [[off [tag alt]] (droneklv/parse-local-set-tag
+                           (b [0x0F 0x02 0xC2 0x21]))]
+      (is (= 4 off))
+      (is (= :sensor-true-alt tag))
+      (is (a= 14190.72 alt 1e-2))))
+  (testing "sensor horizontal fov"
+    (let [[off [tag fov]] (droneklv/parse-local-set-tag
+                           (b [0x10 0x02 0xCD 0x9C]))]
+      (is (= 4 off))
+      (is (= :sensor-horizontal-fov tag))
+      (is (a= 144.5713 fov 1e-4))))
+  (testing "sensor vertical fov"
+    (let [[off [tag fov]] (droneklv/parse-local-set-tag
+                           (b [0x11 0x02 0xD9 0x17]))]
+      (is (= 4 off))
+      (is (= :sensor-vertical-fov tag))
+      (is (a= 152.6436 fov 1e-4))))
+  (testing "sensor relative azimuth"
+    (let [[off [tag angle]] (droneklv/parse-local-set-tag
+                             (b [0x12 0x04 0x72 0x4A 0x0A 0x20]))]
+      (is (= 6 off))
+      (is (= :sensor-relative-azimuth tag))
+      ;; Spec has 160.719211474396.
+      (is (a= 160.7192114369756 angle 1e-12))))
   )
