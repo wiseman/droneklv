@@ -153,6 +153,28 @@
       (is (= 6 off))
       (is (= :frame-center-lon tag))
       (is (a= 29.157890122923 lon 1e-13))))
+  (testing "frame center elevation"
+    (let [[off [tag elev]] (droneklv/parse-local-set-tag
+                            (b [0x19 0x02 0x34 0xF3]))]
+      (is (= 4 off))
+      (is (= :frame-center-elevation tag))
+      (is (a= 3216.037 elev 0.001))))
+  (testing "offset corner lat point 1"
+    (let [[off [tag lat]] (droneklv/parse-local-set-tag
+                            (b [0x1A 0x02 0xC0 0x6E]))]
+      (is (= 4 off))
+      (is (= :offset-corner-lat-point-1 tag))
+      ;; Spec has -10.579637999887, which is actually the offset plus
+      ;; the frame-center-lat from that example, without stating that.
+      (is (a= -0.03724936674092838 lat 1e-12))))
+  (testing "offset corner lon point 1"
+    (let [[off [tag lon]] (droneklv/parse-local-set-tag
+                           (b [0x1B 0x02 0xCB 0xE9]))]
+      (is (= 4 off))
+      (is (= :offset-corner-lon-point-1 tag))
+      ;; Spec has 29.1273677986333, which is actually the offset plus
+      ;; the frame-center-lon from that example, without stating that.
+      (is (a= -0.0305223242896817 lon 1e-12))))
   )
 
 
