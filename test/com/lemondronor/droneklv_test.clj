@@ -44,5 +44,4 @@
                              (b [0x07 0x02 0x08 0xB8]))]
       (is (= 4 off))
       (is (= :platform-roll tag))
-      (is (a= 3.405814 angle 0.001))))
-  )
+      (is (a= 3.405814 angle 0.001)))))
