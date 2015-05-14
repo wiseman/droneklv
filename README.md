@@ -2,12 +2,19 @@
 
 [![Build Status](https://travis-ci.org/wiseman/droneklv.svg?branch=master)](https://travis-ci.org/wiseman/droneklv)[![Coverage Status](https://coveralls.io/repos/wiseman/droneklv/badge.svg?branch=master)](https://coveralls.io/r/wiseman/droneklv?branch=master)
 
-Droneklv is a Clojure library for accessing KLV metadata embedded in
-drone video.
+Droneklv is a Clojure library for accessing
+[KLV metadata](http://en.wikipedia.org/wiki/KLV) embedded in drone
+video.
 
-One relevant standard is the Motion Imagery Standards Board's "UAS
-Datalink Local Set",
-[MISB ST 0601.8](http://www.gwg.nga.mil/misb/docs/standards/ST0601.8.pdf).
+This code attempts to support two of the standards for drone-related
+metadata, both of which come from the Motion Imagery Standards Board:
+
+* "UAS Datalink Local Set", [MISB ST 0601.8](http://www.gwg.nga.mil/misb/docs/standards/ST0601.8.pdf).
+* "Predator UAV Basic Universal Metadata Set, [MISB EG 0104.4](http://www.gwg.nga.mil/misb/docs/eg/EG0104.4.pdf)
+
+EG 0104.4 is an earlier standard (actually, "engineering guideline")
+that requires higher bandwidth. ST 0601.8 is a more recent standard
+with more efficient encoding that is otherwise mostly equivalent.
 
 
 ## Usage
