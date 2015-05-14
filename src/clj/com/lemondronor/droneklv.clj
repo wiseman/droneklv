@@ -120,7 +120,7 @@
 
 
 (defn scaler [src-min src-max dst-min dst-max]
-  #(float
+  #(double
     (+ (* (/ (- % src-min)
              (- src-max src-min))
           (- dst-max dst-min))
