@@ -130,6 +130,11 @@
 (def lat-scaler (scaler -2147483647 2147483647 -90 90))
 (def lon-scaler (scaler -2147483647 2147483647 -180 180))
 (def pos-delta-scaler (scaler -32767 32767 -0.075 0.075))
+(def alt-scaler (scaler 0 65535 -900 19000))
+(def pressure-scaler (scaler 0 65535 0 5000))
+(def pitch-scaler (scaler -32767 32767 -20 20))
+(def range-scaler (scaler 0 4294967295 0 5000000))
+
 
 (def local-set-tags
   (into
@@ -141,29 +146,29 @@
         (apply gloss/compile-frame codec-args)]])
     {1 [:checksum :uint16]
      2 [:unix-timestamp :uint64]
-     3 [:mission-id :string]
-     4 [:platform-tail-number :string]
+     3 [:mission-id (gloss/string :ascii)]
+     4 [:platform-tail-number (gloss/string :ascii)]
      5 [:platform-heading :uint16 nil (scaler 0 65535 0 360)]
-     6 [:platform-pitch :uint16 nil (scaler -32767 32767 -20 20)]
+     6 [:platform-pitch :int16 nil pitch-scaler]
      7 [:platform-roll :uint16 nil (scaler -32767 32767 -50 50)]
      8 [:platform-true-airspeed :ubyte]
      9 [:platform-indicated-airspeed :ubyte]
-     10 [:platform-designation (gloss/string :utf-8)]
-     11 [:image-source-sensor (gloss/string :utf-8)]
-     12 [:image-coordinate-system (gloss/string :utf-8)]
+     10 [:platform-designation (gloss/string :ascii)]
+     11 [:image-source-sensor (gloss/string :ascii)]
+     12 [:image-coordinate-system (gloss/string :ascii)]
      13 [:sensor-lat :int32 nil lat-scaler]
      14 [:sensor-lon :int32 nil lon-scaler]
-     15 [:sensor-true-alt :uint16 nil (scaler 0 65535 -900 19000)]
+     15 [:sensor-true-alt :uint16 nil alt-scaler]
      16 [:sensor-horizontal-fov :uint16 nil (scaler 0 65535 0 180)]
      17 [:sensor-vertical-fov :uint16 nil (scaler 0 65535 0 180)]
      18 [:sensor-relative-azimuth :uint32 nil (scaler 0 4294967295 0 360)]
      19 [:sensor-relative-elevation :uint16 nil (scaler -2147483647 2147483647 -180 180)]
      20 [:sensor-relative-roll :uint32 nil (scaler 0 4294967295 0 360)]
-     21 [:slant-range :uint32 nil (scaler 0 4294967295 0 5000000)]
+     21 [:slant-range :uint32 nil range-scaler]
      22 [:target-width :uint16 nil (scaler 0 65535 0 10000)]
      23 [:frame-center-lat :int32 nil lat-scaler]
      24 [:frame-center-lon :int32 nil lon-scaler]
-     25 [:frame-center-elevation :uint16 nil (scaler 0 65535 -900 19000)]
+     25 [:frame-center-elevation :uint16 nil alt-scaler]
      26 [:offset-corner-lat-point-1 :int16 nil pos-delta-scaler]
      27 [:offset-corner-lon-point-1 :int16 nil pos-delta-scaler]
      28 [:offset-corner-lat-point-2 :int16 nil pos-delta-scaler]
@@ -175,7 +180,44 @@
      34 [:icing-detected :ubyte]
      35 [:wind-direction :uint16 nil (scaler 0 65535 0 360)]
      36 [:wind-speech :ubyte nil (scaler 0 255 0 100)]
+     37 [:static-pressure :uint16 nil pressure-scaler]
+     38 [:density-altitude :uint16 nil alt-scaler]
+     39 [:outside-air-temp :byte]
+     40 [:target-location-lat :int32 nil lat-scaler]
+     41 [:target-location-lon :int32 nil lon-scaler]
+     42 [:target-location-elevation :uint16 nil alt-scaler]
+     43 [:target-track-gate-width :ubyte]
+     44 [:target-track-gate-height :ubyte]
+     45 [:target-error-estimate-ce90 :uint16]
+     46 [:target-error-estimate-le90 :uint16]
+     47 [:generic-flag-data :ubyte]
+     ;; FIXME
+     48 [:security-local-metadata-set :ubyte]
+     49 [:differential-pressure :uint16 nil pressure-scaler]
+     50 [:platform-aoa :int16 nil pitch-scaler]
+     51 [:platform-vertical-speed :int16 nil (scaler -32767 32767 -180 180)]
+     52 [:platform-sideslip-angle :int16 nil (scaler -32767 32767 -20 20)]
+     53 [:airfield-baro-pressure :uint16 nil pressure-scaler]
+     54 [:airfield-elevation :uint16 nil alt-scaler]
+     55 [:relative-humidity :uint8 nil (scaler 0 255 0 100)]
+     56 [:platform-ground-speed :ubyte]
+     57 [:ground-range :uint32 nil range-scaler]
+     58 [:platform-fuel-remaining :uint16 nil (scaler 0 65535 0 10000)]
+     59 [:platform-call-sign (gloss/string :ascii)]
+     60 [:weapon-load :uint16]
+     61 [:weapon-fired :uint8]
+     62 [:laser-prf-code :uint16]
+     63 [:sensor-fov-name :ubyte]
+     64 [:platform-magnetic-heading :uint16 nil (scaler 0 65535 0 360)]
      65 [:uas-ls-version-number :ubyte]
+     ;; "TBD" in ST0601.8 spec.
+     66 [:target-location-covariance-matrix :ubyte]
+     67 [:alternate-platform-lat :int32 nil lat-scaler]
+     68 [:alternate-platform-lon :int32 nil lon-scaler]
+     69 [:alternate-platform-alt :uint16 nil alt-scaler]
+     70 [:alternate-platform-name (gloss/string :ascii)]
+     71 [:alternate-platform-heading :uint16 nil (scaler 0 65535 0 360)]
+     72 [:event-start-time-utc :uint64]
      })))
 
 
@@ -191,6 +233,22 @@
    (map #(format "%x" %) (bytes->ints data))))
 
 
+(defn parse-local-set-tag
+  ([data]
+   (parse-local-set-tag data 0))
+  ([^bytes data offset]
+   (let [[tag-value offset] (read-ber data offset)
+         [tag codec] (get local-set-tags tag-value)
+         [len offset] (read-ber data offset)
+         tag-data (byte-array len)]
+     (System/arraycopy data offset tag-data 0 len)
+     [(+ offset len)
+      [(or tag tag-value)
+       (if codec
+         (gloss.io/decode codec tag-data false)
+         tag-data)]])))
+
+
 (defn parse-local-set
   ([data]
    (parse-local-set data 0))
@@ -199,19 +257,10 @@
           values '()]
      (if (>= offset (count data))
        (reverse values)
-       (let [[tag-num offset] (read-ber data offset)
-             [tag codec] (get local-set-tags tag-num)
-             [len offset] (read-ber data offset)
-             value (byte-array len)]
-         (System/arraycopy data offset value 0 len)
+       (let [[offset tag] (parse-local-set-tag data offset)]
          (recur
-          (+ offset len)
-          (conj
-           values
-           [(or tag tag-num)
-            (if codec
-              (gloss.io/decode codec value false)
-              value)])))))))
+          offset
+          (conj values tag)))))))
 
 
 (defn klvs-from-bytes [^bytes data]
