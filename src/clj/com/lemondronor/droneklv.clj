@@ -227,12 +227,6 @@
    (inc offset)])
 
 
-(defn bytes->hex [^bytes data]
-  (string/join
-   " "
-   (map #(format "%x" %) (bytes->ints data))))
-
-
 (defn parse-local-set-tag
   ([data]
    (parse-local-set-tag data 0))
@@ -279,13 +273,13 @@
              (cond
                (nil? tag)
                (str "*Unknown* "
-                    (bytes->hex (.getFullKey klv)) ":" (bytes->hex (.getValue klv)))
+                    (vec (.getFullKey klv)) ":" (vec (.getValue klv)))
                (= tag :klv-basic-universal-metadata-set)
                [tag (decode (.getValue klv))]
                (= tag :klv-uas-datalink-local-dataset)
                [tag (parse-local-set (.getValue klv))]
                :else
-               [tag (bytes->hex (.getValue klv))])))
+               [tag (vec (.getValue klv))])))
          klvs)))
 
 
