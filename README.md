@@ -1,5 +1,7 @@
 # droneklv
 
+[![Build Status](https://travis-ci.org/wiseman/droneklv.svg?branch=master)](https://travis-ci.org/wiseman/droneklv)[![Coverage Status](https://coveralls.io/repos/wiseman/droneklv/badge.svg?branch=master)](https://coveralls.io/r/wiseman/droneklv?branch=master)
+
 Droneklv is a Clojure library for accessing KLV metadata embedded in
 drone video.
 
