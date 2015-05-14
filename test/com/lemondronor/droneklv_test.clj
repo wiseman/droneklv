@@ -51,13 +51,13 @@
       (is (a= -0.4315317 angle 1e-7))))
   (testing "platform true airspeed"
     (let [[off [tag spd]] (droneklv/parse-local-set-tag
-                             (b [0x08 0x01 0x93]))]
+                           (b [0x08 0x01 0x93]))]
       (is (= 3 off))
       (is (= :platform-true-airspeed tag))
       (is (= 147 spd))))
   (testing "platform indicated airspeed"
     (let [[off [tag spd]] (droneklv/parse-local-set-tag
-                             (b [0x09 0x01 0x9F]))]
+                           (b [0x09 0x01 0x9F]))]
       (is (= 3 off))
       (is (= :platform-indicated-airspeed tag))
       (is (= 159 spd))))
@@ -69,7 +69,7 @@
       (is (= "MQ1-B" desig))))
   (testing "image source sensor"
     (let [[off [tag src]] (droneklv/parse-local-set-tag
-                             (b [0x0B 0x02 0x45 0x4F]))]
+                           (b [0x0B 0x02 0x45 0x4F]))]
       (is (= 4 off))
       (is (= :image-source-sensor tag))
       (is (= "EO" src))))
@@ -161,7 +161,7 @@
       (is (a= 3216.037 elev 0.001))))
   (testing "offset corner lat point 1"
     (let [[off [tag lat]] (droneklv/parse-local-set-tag
-                            (b [0x1A 0x02 0xC0 0x6E]))]
+                           (b [0x1A 0x02 0xC0 0x6E]))]
       (is (= 4 off))
       (is (= :offset-corner-lat-point-1 tag))
       ;; Spec has -10.579637999887, which is actually the offset plus
@@ -175,6 +175,48 @@
       ;; Spec has 29.1273677986333, which is actually the offset plus
       ;; the frame-center-lon from that example, without stating that.
       (is (a= -0.0305223242896817 lon 1e-12))))
+  (testing "offset corner lat point 2"
+    (let [[off [tag lat]] (droneklv/parse-local-set-tag
+                           (b [0x1C 0x02 0xD7 0x65]))]
+      (is (= 4 off))
+      (is (= :offset-corner-lat-point-2 tag))
+      (is (a= -0.023792992950224308 lat 1e-12))))
+  (testing "offset corner lon point 2"
+    (let [[off [tag lon]] (droneklv/parse-local-set-tag
+                           (b [0x1D 0x02 0xCB 0xE9]))]
+      (is (= 4 off))
+      (is (= :offset-corner-lon-point-2 tag))
+      (is (a= -0.0305223242896817 lon 1e-12))))
+  (testing "offset corner lat point 3"
+    (let [[off [tag lat]] (droneklv/parse-local-set-tag
+                           (b [0x1E 0x02 0xEE 0x5B]))]
+      (is (= 4 off))
+      (is (= :offset-corner-lat-point-3 tag))
+      (is (a= -0.010338908047730952 lat 1e-12))))
+  (testing "offset corner lon point 3"
+    (let [[off [tag lon]] (droneklv/parse-local-set-tag
+                           (b [0x1F 0x02 0xF9 0xD6]))]
+      (is (= 4 off))
+      (is (= :offset-corner-lon-point-3 tag))
+      (is (a= -0.0036118655964842705 lon 1e-12))))
+  (testing "offset corner lat point 4"
+    (let [[off [tag lat]] (droneklv/parse-local-set-tag
+                           (b [0x20 0x02 0x05 0x52]))]
+      (is (= 4 off))
+      (is (= :offset-corner-lat-point-4 tag))
+      (is (a= 0.0031174657429731134 lat 1e-12))))
+  (testing "offset corner lon point 4"
+    (let [[off [tag lon]] (droneklv/parse-local-set-tag
+                           (b [0x21 0x02 0x10 0xCD]))]
+      (is (= 4 off))
+      (is (= :offset-corner-lon-point-4 tag))
+      (is (a= 0.009844508194219795 lon 1e-12))))
+  (testing "icing detected"
+    (let [[off [tag icing?]] (droneklv/parse-local-set-tag
+                              (b [0x22 0x01 0x9B]))]
+      (is (= 3 off))
+      (is (= :icing-detected tag))
+      (is (a= 0.009844508194219795 icing? 1e-12))))
   )
 
 
