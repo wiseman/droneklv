@@ -129,4 +129,41 @@
       (is (= :sensor-relative-roll tag))
       ;; Spec has 176.865437690572.
       (is (a= 176.8654376493919 angle 1e-12))))
+  (testing "slant range"
+    (let [[off [tag range]] (droneklv/parse-local-set-tag
+                             (b [0x15 0x04 0x03 0x83 0x09 0x26]))]
+      (is (= 6 off))
+      (is (= :slant-range tag))
+      (is (a= 68590.98 range 0.01))))
+  (testing "target width"
+    (let [[off [tag range]] (droneklv/parse-local-set-tag
+                             (b [0x16 0x02 0x12 0x81]))]
+      (is (= 4 off))
+      (is (= :target-width tag))
+      (is (a= 722.8199 range 1e-4))))
+  (testing "frame center lat"
+    (let [[off [tag lat]] (droneklv/parse-local-set-tag
+                           (b [0x17 0x04 0xF1 0x01 0xA2 0x29]))]
+      (is (= 6 off))
+      (is (= :frame-center-lat tag))
+      (is (a= -10.5423886331461 lat 1e-13))))
+  (testing "frame center lon"
+    (let [[off [tag lon]] (droneklv/parse-local-set-tag
+                           (b [0x18 0x04 0x14 0xBC 0x08 0x2B]))]
+      (is (= 6 off))
+      (is (= :frame-center-lon tag))
+      (is (a= 29.157890122923 lon 1e-13))))
   )
+
+
+(deftest parse-local-set
+  (testing "parse local set"
+    (let [tags (vec
+                (droneklv/parse-local-set
+                 (b [;; First tag
+                     0x0B 0x02 0x45 0x4F
+                     ;; Second tag
+                     0x05 0x02 0x71 0xC2])))]
+      (is (= [:image-source-sensor "EO"] (get tags 0)))
+      (is (= :platform-heading (get-in tags [1 0])))
+      (is (a= 159.9743648432136 (get-in tags [1 1]) 1e-13)))))
