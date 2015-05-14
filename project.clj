@@ -7,4 +7,5 @@
                  [gloss "0.2.5"]
                  [org.clojure/clojure "1.6.0"]]
   :source-paths ["src/clj"]
-  :java-source-paths ["src/java"])
+  :java-source-paths ["src/java"]
+  :profiles {:dev {:plugins [[lein-cloverage "1.0.2"]]}})
