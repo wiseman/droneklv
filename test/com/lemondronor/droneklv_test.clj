@@ -157,7 +157,12 @@
 
 
 (deftest parse-local-set
-  (testing "parse local set"
+  (testing "parse local set: 1 item"
+    (let [tags (vec
+                (droneklv/parse-local-set
+                 (b [0x0B 0x02 0x45 0x4F])))]
+      (is (= [:image-source-sensor "EO"] (get tags 0)))))
+  (testing "parse local set: 2 items"
     (let [tags (vec
                 (droneklv/parse-local-set
                  (b [;; First tag
