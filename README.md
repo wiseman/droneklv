@@ -10,7 +10,7 @@ This code attempts to support two of the standards for drone-related
 metadata, both of which come from the Motion Imagery Standards Board:
 
 * "UAS Datalink Local Set", [MISB ST 0601.8](http://www.gwg.nga.mil/misb/docs/standards/ST0601.8.pdf).
-* "Predator UAV Basic Universal Metadata Set, [MISB EG 0104.4](http://www.gwg.nga.mil/misb/docs/eg/EG0104.4.pdf).
+* "Predator UAV Basic Universal Metadata Set", [MISB EG 0104.4](http://www.gwg.nga.mil/misb/docs/eg/EG0104.4.pdf).
 
 EG 0104.4 is an earlier standard (actually, "engineering guideline")
 that requires higher bandwidth. ST 0601.8 is a more recent standard
