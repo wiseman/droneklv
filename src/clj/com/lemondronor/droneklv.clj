@@ -26,16 +26,6 @@
         ints))
 
 
-(defn bytes->ints
-  [bytes]
-  (mapv (fn [i]
-          (if (not (<= -128 i 127))
-            (throw (IllegalArgumentException.
-                    (format "Value out of range for byte: %s" i)))
-            (bit-and 0xff (int i))))
-        bytes))
-
-
 ;; Taken from
 ;; http://trac.osgeo.org/ossim/browser/trunk/ossimPredator/src/ossimPredatorKlvTable.cpp
 
