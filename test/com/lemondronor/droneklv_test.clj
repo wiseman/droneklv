@@ -212,11 +212,11 @@
       (is (= :offset-corner-lon-point-4 tag))
       (is (a= 0.009844508194219795 lon 1e-12))))
   (testing "icing detected"
-    (let [[off [tag icing?]] (droneklv/parse-local-set-tag
-                              (b [0x22 0x01 0x9B]))]
+    (let [[off [tag icing]] (droneklv/parse-local-set-tag
+                             (b [0x22 0x01 0x9B]))]
       (is (= 3 off))
       (is (= :icing-detected tag))
-      (is (a= 0.009844508194219795 icing? 1e-12))))
+      (is (= 0x9B icing))))
   )
 
 
