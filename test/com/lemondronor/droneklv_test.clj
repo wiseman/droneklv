@@ -217,6 +217,36 @@
       (is (= 3 off))
       (is (= :icing-detected tag))
       (is (= 0x9B icing))))
+  (testing "wind direction"
+    (let [[off [tag wind]] (droneklv/parse-local-set-tag
+                            (b [0x23 0x02 0xA7 0xC4]))]
+      (is (= 4 off))
+      (is (= :wind-direction tag))
+      (is (a= 235.924 wind 0.001))))
+  (testing "wind speed"
+    (let [[off [tag wind]] (droneklv/parse-local-set-tag
+                            (b [0x24 0x01 0xB2]))]
+      (is (= 3 off))
+      (is (= :wind-speed tag))
+      (is (a= 69.80392 wind 0.00001))))
+  (testing "static pressure"
+    (let [[off [tag press]] (droneklv/parse-local-set-tag
+                             (b [0x25 0x02 0xBE 0xBA]))]
+      (is (= 4 off))
+      (is (= :static-pressure tag))
+      (is (a= 3725.185 press 0.001))))
+  (testing "density altitude"
+    (let [[off [tag alt]] (droneklv/parse-local-set-tag
+                           (b [0x26 0x02 0xCA 0x35]))]
+      (is (= 4 off))
+      (is (= :density-altitude tag))
+      (is (a= 14818.68 alt 0.01))))
+  (testing "outside air temperature"
+    (let [[off [tag temp]] (droneklv/parse-local-set-tag
+                            (b [0x27 0x01 0x54]))]
+      (is (= 3 off))
+      (is (= :outside-air-temp tag))
+      (is (= 84 temp))))
   )
 
 

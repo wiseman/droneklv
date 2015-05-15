@@ -179,7 +179,7 @@
      33 [:offset-corner-lon-point-4 :int16 nil pos-delta-scaler]
      34 [:icing-detected :ubyte]
      35 [:wind-direction :uint16 nil (scaler 0 65535 0 360)]
-     36 [:wind-speech :ubyte nil (scaler 0 255 0 100)]
+     36 [:wind-speed :ubyte nil (scaler 0 255 0 100)]
      37 [:static-pressure :uint16 nil pressure-scaler]
      38 [:density-altitude :uint16 nil alt-scaler]
      39 [:outside-air-temp :byte]
