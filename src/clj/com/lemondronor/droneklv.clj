@@ -6,6 +6,7 @@
             [gloss.core :as gloss]
             [gloss.io])
   (:import [com.lemondronor.droneklv KLV KLV$KeyLength KLV$LengthEncoding]
+           [java.nio ByteBuffer]
            [java.util Arrays]))
 
 (set! *warn-on-reflection* true)
@@ -26,8 +27,315 @@
         ints))
 
 
+(defn klvs-from-bytes [^bytes data]
+  (KLV/bytesToList
+   data
+   0
+   (count data)
+   KLV$KeyLength/SixteenBytes
+   KLV$LengthEncoding/BER))
+
+
+(defn read-ber [data offset]
+  ;; FIXME: Handle > 127.
+  [(get data offset)
+   (inc offset)])
+
+
+(def item-index
+  (atom
+   {;; Map of name (e.g. :unix-timestamp) to item definition.
+    :items-by-name {}
+    ;; Map from single byte (usually?) local set key (e.g. 3) to item
+    ;; definition.
+    :local-set-keys {}
+    ;; Map from 16-byte universal set key to item definition. We use
+    ;; ByteBuffers as keys in this map because we're really working with
+    ;; byte arrays underneath, but byte arrays hash based on object
+    ;; identity while ByteBuffers hash based on contents (and are
+    ;; cheaper than creating vecs from byte arrays).
+    :universal-set-keys {}}))
+
+
+(defn defitems [item-specs]
+  (let [bb (fn [bs] (ByteBuffer/wrap (byte-array (ints->bytes bs))))]
+    (->> item-specs
+         ;; Add name to attrs
+         (map (fn [[name attr]]
+                [name (assoc attr :name name)]))
+         ;; Convert universal key vecs to ByteBuffers.
+         (map (fn [[name attr]]
+                (assert (or (:us-key attr) (:ls-key attr))
+                        (str "Item must have :us-key or :ls-key: " name))
+                [name (if-let [us-key (:us-key attr)]
+                        (assoc attr :us-key (bb us-key))
+                        attr)]))
+         ;; Convert types to decoding functions.
+         (map (fn [[name attr]]
+                (assert (not (and (:type attr) (:decoder attr)))
+                        (str "Item cannot have :type and :decoder: " name))
+                [name (if-let [type (:type attr)]
+                        (assoc
+                         attr
+                         :decoder
+                         (let [frame (if-let [scale (:scale attr)]
+                                       (gloss/compile-frame type nil scale)
+                                       (gloss/compile-frame type))]
+                           #(gloss.io/decode frame % false)))
+                        attr)]))
+         (into {})
+         (swap! item-index assoc :items-by-name)))
+  ;; Index local set keys.
+  (swap! item-index assoc :local-set-keys
+         (reduce-kv
+          (fn [m name attr]
+            (if-let [ls-key (:ls-key attr)]
+              (do
+                (assert
+                 (nil? (m ls-key))
+                 (str "Duplicate local set key for item " name ": " ls-key))
+                (assoc m ls-key attr))
+              m))
+          {}
+          (:items-by-name @item-index)))
+  ;; Index universal set keys.
+  (swap! item-index assoc :universal-set-keys
+         (reduce-kv
+          (fn [m name attr]
+            (if-let [us-key (:us-key attr)]
+              (do
+                (assert
+                 (nil? (m us-key))
+                 (str "Duplicate universal set key for item " name ": " us-key))
+                (assoc m us-key attr))
+              m))
+          {}
+          (:items-by-name @item-index))))
+
+
+(defn scaler [src-min src-max dst-min dst-max]
+  #(double
+    (+ (* (/ (- % src-min)
+             (- src-max src-min))
+          (- dst-max dst-min))
+       dst-min)))
+
+
+
+
 ;; Taken from
 ;; http://trac.osgeo.org/ossim/browser/trunk/ossimPredator/src/ossimPredatorKlvTable.cpp
+
+(defn decode-basic-universal-dataset [^bytes data]
+  (let [klvs (klvs-from-bytes data)]
+    (map (fn [^KLV klv]
+           (let [item-def (get-in @item-index
+                                  [:universal-set-keys
+                                   (ByteBuffer/wrap (.getFullKey ^KLV klv))])
+                 item-name (:name item-def)]
+             (if item-def
+               [item-name ((:decoder item-def) (.getValue klv))]
+               [vec (.getFullKey klv) (vec (.getValue klv))])))
+         klvs)))
+
+
+(defn decode-local-set-tag
+  ([data]
+   (decode-local-set-tag data 0))
+  ([^bytes data offset]
+   (let [[tag-value offset] (read-ber data offset)
+         item-def (get-in @item-index [:local-set-keys tag-value])
+         [len offset] (read-ber data offset)
+         tag-data (byte-array len)]
+     (System/arraycopy data offset tag-data 0 len)
+     [(+ offset len)
+      (if item-def
+        [(:name item-def)
+         (if-let [decoder (:decoder item-def)]
+           (decoder tag-data)
+           tag-data)]
+        [tag-value (vec tag-data)])])))
+
+
+(defn decode-uas-datalink-local-dataset
+  ([data]
+   (decode-uas-datalink-local-dataset data 0))
+  ([data offset]
+   (loop [offset offset
+          values '()]
+     (if (>= offset (count data))
+       (reverse values)
+       (let [[offset tag] (decode-local-set-tag data offset)]
+         (recur
+          offset
+          (conj values tag)))))))
+
+
+(def lat-scaler (scaler -2147483647 2147483647 -90 90))
+(def lon-scaler (scaler -2147483647 2147483647 -180 180))
+(def pos-delta-scaler (scaler -32767 32767 -0.075 0.075))
+(def alt-scaler (scaler 0 65535 -900 19000))
+(def pressure-scaler (scaler 0 65535 0 5000))
+(def pitch-scaler (scaler -32767 32767 -20 20))
+(def range-scaler (scaler 0 4294967295 0 5000000))
+
+
+(defitems
+  {:basic-universal-dataset
+   {:us-key [0x06 0x0E 0x2B 0x34 0x02 0x01 0x01 0x01 0x0E 0x01 0x01 0x02 0x01 0x01 0x00 0x00]
+    :decoder decode-basic-universal-dataset}
+   :uas-datalink-local-dataset
+   {:us-key [0x06 0x0E 0x2B 0x34 0x02 0x0B 0x01 0x01 0x0E 0x01 0x03 0x01 0x01 0x00 0x00 0x00]
+    :decoder decode-uas-datalink-local-dataset}
+   :unix-timestamp
+   {:ls-key 2
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x04 0x07 0x02 0x01 0x01 0x01 0x05 0x00 0x00]
+    :type :uint64}
+   :mission-id
+   {:ls-key 3
+    :type (gloss/string :ascii)}
+   :platform-tail-number
+   {:ls-key 4
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x01 0x01 0x05 0x05 0x00 0x00 0x00 0x00 0x00]
+    :type (gloss/string :ascii)}
+   :platform-heading
+   {:ls-key 5
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x07 0x07 0x01 0x10 0x01 0x06 0x00 0x00 0x00]
+    :type :uint16
+    :scale (scaler 0 65535 0 360)}
+   :platform-pitch
+   {:ls-key 6
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x07 0x07 0x01 0x10 0x01 0x05 0x00 0x00 0x00]
+    :type :int16
+    :scale pitch-scaler}
+   :platform-roll
+   {:ls-key 7
+    :type :int16
+    :scale (scaler -32767 32767 -50 50)}
+   :platform-true-airspeed
+   {:ls-key 8
+    :type :ubyte}
+   :platform-indicated-airspeed
+   {:ls-key 9
+    :type :ubyte}
+   :platform-designation
+   {:ls-key 10
+    :type (gloss/string :ascii)}
+   :image-source-sensor
+   {:ls-key 11
+    :type (gloss/string :ascii)}
+   :image-coordinate-system
+   {:ls-key 12
+    :type (gloss/string :ascii)}
+   :sensor-lat
+   {:ls-key 13
+    :type :int32
+    :scale lat-scaler}
+   :sensor-lon
+   {:ls-key 14
+    :type :int32
+    :scale lon-scaler}
+   :sensor-true-alt
+   {:ls-key 15
+    :type :uint16
+    :scale alt-scaler}
+   :sensor-horizontal-fov
+   {:ls-key 16
+    :type :uint16
+    :scale (scaler 0 65535 0 180)}
+   :sensor-vertical-fov
+   {:ls-key 17
+    :type :uint16
+    :scale (scaler 0 65535 0 180)}
+   :sensor-relative-azimuth
+   {:ls-key 18
+    :type :uint32
+    :scale (scaler 0 4294967295 0 360)}
+   :sensor-relative-elevation
+   {:ls-key 19
+    :type :int32
+    :scale (scaler -2147483647 2147483647 -180 180)}
+   :sensor-relative-roll
+   {:ls-key 20
+    :type :int32
+    :scale (scaler 0 4294967295 0 360)}
+   :slant-range
+   {:ls-key 21
+    :type :uint32
+    :scale range-scaler}
+   :target-width
+   {:ls-key 22
+    :type :uint16
+    :scale (scaler 0 65535 0 10000)}
+   :frame-center-lat
+   {:ls-key 23
+    :type :int32
+    :scale lat-scaler}
+   :frame-center-lon
+   {:ls-key 24
+    :type :int32
+    :scale lon-scaler}
+   :frame-center-elevation
+   {:ls-key 25
+    :type :uint16
+    :scale alt-scaler}
+   :offset-corner-lat-point-1
+   {:ls-key 26
+    :type :int16
+    :scale pos-delta-scaler}
+   :offset-corner-lon-point-1
+   {:ls-key 27
+    :type :int16
+    :scale pos-delta-scaler}
+   :offset-corner-lat-point-2
+   {:ls-key 28
+    :type :int16
+    :scale pos-delta-scaler}
+   :offset-corner-lon-point-2
+   {:ls-key 29
+    :type :int16
+    :scale pos-delta-scaler}
+   :offset-corner-lat-point-3
+   {:ls-key 30
+    :type :int16
+    :scale pos-delta-scaler}
+   :offset-corner-lon-point-3
+   {:ls-key 31
+    :type :int16
+    :scale pos-delta-scaler}
+   :offset-corner-lat-point-4
+   {:ls-key 32
+    :type :int16
+    :scale pos-delta-scaler}
+   :offset-corner-lon-point-4
+   {:ls-key 33
+    :type :int16
+    :scale pos-delta-scaler}
+   :icing-detected
+   {:ls-key 34
+    :type :ubyte}
+   :wind-direction
+   {:ls-key 35
+    :type :uint16
+    :scale (scaler 0 65535 0 360)}
+   :wind-speed
+   {:ls-key 36
+    :type :ubyte
+    :scale (scaler 0 255 0 100)}
+   :static-pressure
+   {:ls-key 37
+    :type :uint16
+    :scale pressure-scaler}
+   :density-altitude
+   {:ls-key 38
+    :type :uint16
+    :scale alt-scaler}
+   :outside-air-temp
+   {:ls-key 39
+    :type :byte}
+
+   })
+
 
 (def tags
   [[:klv-key-stream-id
@@ -107,23 +415,6 @@
         tag
         (recur (rest tags)))
       nil)))
-
-
-(defn scaler [src-min src-max dst-min dst-max]
-  #(double
-    (+ (* (/ (- % src-min)
-             (- src-max src-min))
-          (- dst-max dst-min))
-       dst-min)))
-
-
-(def lat-scaler (scaler -2147483647 2147483647 -90 90))
-(def lon-scaler (scaler -2147483647 2147483647 -180 180))
-(def pos-delta-scaler (scaler -32767 32767 -0.075 0.075))
-(def alt-scaler (scaler 0 65535 -900 19000))
-(def pressure-scaler (scaler 0 65535 0 5000))
-(def pitch-scaler (scaler -32767 32767 -20 20))
-(def range-scaler (scaler 0 4294967295 0 5000000))
 
 
 (def local-set-tags
@@ -211,71 +502,9 @@
      })))
 
 
-(defn read-ber [data offset]
-  ;; FIXME: Handle > 127.
-  [(get data offset)
-   (inc offset)])
-
-
-(defn parse-local-set-tag
-  ([data]
-   (parse-local-set-tag data 0))
-  ([^bytes data offset]
-   (let [[tag-value offset] (read-ber data offset)
-         [tag codec] (get local-set-tags tag-value)
-         [len offset] (read-ber data offset)
-         tag-data (byte-array len)]
-     (System/arraycopy data offset tag-data 0 len)
-     [(+ offset len)
-      [(or tag tag-value)
-       (if codec
-         (gloss.io/decode codec tag-data false)
-         tag-data)]])))
-
-
-(defn parse-local-set
-  ([data]
-   (parse-local-set data 0))
-  ([data offset]
-   (loop [offset offset
-          values '()]
-     (if (>= offset (count data))
-       (reverse values)
-       (let [[offset tag] (parse-local-set-tag data offset)]
-         (recur
-          offset
-          (conj values tag)))))))
-
-
-(defn klvs-from-bytes [^bytes data]
-  (KLV/bytesToList
-   data
-   0
-   (count data)
-   KLV$KeyLength/SixteenBytes
-   KLV$LengthEncoding/BER))
-
-
-(defn decode [^bytes data]
-  (let [klvs (klvs-from-bytes data)]
-    (map (fn [^KLV klv]
-           (let [[tag desc _] (find-klv-signature (.getFullKey ^KLV klv))]
-             (cond
-               (nil? tag)
-               (str "*Unknown* "
-                    (vec (.getFullKey klv)) ":" (vec (.getValue klv)))
-               (= tag :klv-basic-universal-metadata-set)
-               [tag (decode (.getValue klv))]
-               (= tag :klv-uas-datalink-local-dataset)
-               [tag (parse-local-set (.getValue klv))]
-               :else
-               [tag (vec (.getValue klv))])))
-         klvs)))
-
-
 (defn -main [& args]
   (-> args
       first
       xio/binary-slurp
-      decode
+      decode-basic-universal-dataset
       pprint/pprint))
