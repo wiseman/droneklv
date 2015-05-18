@@ -1,5 +1,5 @@
 (ns com.lemondronor.droneklv
-  "Work with KLV metadata frome drone video."
+  "Decode KLV metadata from drone video."
   (:require [clojure.pprint :as pprint]
             [clojure.string :as string]
             [com.lemonodor.xio :as xio]
@@ -93,7 +93,8 @@
               (do
                 (assert
                  (nil? (m ls-key))
-                 (str "Duplicate local set key for item " name ": " ls-key))
+                 (str "Duplicate local set key for item " name
+                      " and item " (m ls-key) ": " ls-key))
                 (assoc m ls-key attr))
               m))
           {}
@@ -106,7 +107,8 @@
               (do
                 (assert
                  (nil? (m us-key))
-                 (str "Duplicate universal set key for item " name ": " us-key))
+                 (str "Duplicate universal set key for item " name
+                      " and item " (m us-key) ": " us-key))
                 (assoc m us-key attr))
               m))
           {}
@@ -135,7 +137,7 @@
                  item-name (:name item-def)]
              (if item-def
                [item-name ((:decoder item-def) (.getValue klv))]
-               [vec (.getFullKey klv) (vec (.getValue klv))])))
+               [(vec (.getFullKey klv)) (vec (.getValue klv))])))
          klvs)))
 
 
@@ -187,17 +189,18 @@
    :uas-datalink-local-dataset
    {:us-key [0x06 0x0E 0x2B 0x34 0x02 0x0B 0x01 0x01 0x0E 0x01 0x03 0x01 0x01 0x00 0x00 0x00]
     :decoder decode-uas-datalink-local-dataset}
+   :checksum
+   {:ls-key 1 :type :uint16}
    :unix-timestamp
    {:ls-key 2
     :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x04 0x07 0x02 0x01 0x01 0x01 0x05 0x00 0x00]
     :type :uint64}
    :mission-id
    {:ls-key 3
-    :type (gloss/string :ascii)}
-   :platform-tail-number
-   {:ls-key 4
     :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x01 0x01 0x05 0x05 0x00 0x00 0x00 0x00 0x00]
     :type (gloss/string :ascii)}
+   :platform-tail-number
+   {:ls-key 4 :type (gloss/string :ascii)}
    :platform-heading
    {:ls-key 5
     :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x07 0x07 0x01 0x10 0x01 0x06 0x00 0x00 0x00]
@@ -210,130 +213,244 @@
     :scale pitch-scaler}
    :platform-roll
    {:ls-key 7
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x07 0x07 0x01 0x10 0x01 0x04 0x00 0x00 0x00]
     :type :int16
     :scale (scaler -32767 32767 -50 50)}
    :platform-true-airspeed
-   {:ls-key 8
-    :type :ubyte}
+   {:ls-key 8 :type :ubyte}
    :platform-indicated-airspeed
-   {:ls-key 9
-    :type :ubyte}
+   {:ls-key 9 :type :ubyte}
    :platform-designation
    {:ls-key 10
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x01 0x01 0x01 0x20 0x01 0x00 0x00 0x00 0x00]
     :type (gloss/string :ascii)}
    :image-source-sensor
    {:ls-key 11
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x01 0x04 0x20 0x01 0x02 0x01 0x01 0x00 0x00]
     :type (gloss/string :ascii)}
    :image-coordinate-system
    {:ls-key 12
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x01 0x07 0x01 0x01 0x01 0x00 0x00 0x00 0x00]
     :type (gloss/string :ascii)}
    :sensor-lat
    {:ls-key 13
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x03 0x07 0x01 0x02 0x01 0x02 0x04 0x02 0x00]
     :type :int32
     :scale lat-scaler}
    :sensor-lon
    {:ls-key 14
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x03 0x07 0x01 0x02 0x01 0x02 0x06 0x02 0x00]
     :type :int32
     :scale lon-scaler}
    :sensor-true-alt
    {:ls-key 15
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x01 0x07 0x01 0x02 0x01 0x02 0x02 0x00 0x00]
     :type :uint16
     :scale alt-scaler}
    :sensor-horizontal-fov
    {:ls-key 16
-    :type :uint16
-    :scale (scaler 0 65535 0 180)}
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x02 0x04 0x20 0x02 0x01 0x01 0x08 0x00 0x00]
+    :type :uint16 :scale (scaler 0 65535 0 180)}
    :sensor-vertical-fov
-   {:ls-key 17
-    :type :uint16
-    :scale (scaler 0 65535 0 180)}
+   {:ls-key 17 :type :uint16 :scale (scaler 0 65535 0 180)}
    :sensor-relative-azimuth
-   {:ls-key 18
-    :type :uint32
-    :scale (scaler 0 4294967295 0 360)}
+   {:ls-key 18 :type :uint32 :scale (scaler 0 4294967295 0 360)}
    :sensor-relative-elevation
-   {:ls-key 19
-    :type :int32
-    :scale (scaler -2147483647 2147483647 -180 180)}
+   {:ls-key 19 :type :int32 :scale (scaler -2147483647 2147483647 -180 180)}
    :sensor-relative-roll
-   {:ls-key 20
-    :type :int32
-    :scale (scaler 0 4294967295 0 360)}
+   {:ls-key 20 :type :int32 :scale (scaler 0 4294967295 0 360)}
    :slant-range
    {:ls-key 21
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x01 0x07 0x01 0x08 0x01 0x01 0x00 0x00 0x00]
     :type :uint32
     :scale range-scaler}
    :target-width
    {:ls-key 22
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x01 0x07 0x01 0x09 0x02 0x01 0x00 0x00 0x00]
     :type :uint16
     :scale (scaler 0 65535 0 10000)}
    :frame-center-lat
    {:ls-key 23
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x01 0x07 0x01 0x02 0x01 0x03 0x02 0x00 0x00]
     :type :int32
     :scale lat-scaler}
    :frame-center-lon
    {:ls-key 24
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x01 0x07 0x01 0x02 0x01 0x03 0x04 0x00 0x00]
     :type :int32
     :scale lon-scaler}
    :frame-center-elevation
-   {:ls-key 25
-    :type :uint16
-    :scale alt-scaler}
+   {:ls-key 25 :type :uint16 :scale alt-scaler}
    :offset-corner-lat-point-1
    {:ls-key 26
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x03 0x07 0x01 0x02 0x01 0x03 0x07 0x01 0x00]
     :type :int16
     :scale pos-delta-scaler}
    :offset-corner-lon-point-1
    {:ls-key 27
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x03 0x07 0x01 0x02 0x01 0x03 0x0B 0x01 0x00]
     :type :int16
     :scale pos-delta-scaler}
    :offset-corner-lat-point-2
    {:ls-key 28
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x03 0x07 0x01 0x02 0x01 0x03 0x08 0x01 0x00]
     :type :int16
     :scale pos-delta-scaler}
    :offset-corner-lon-point-2
    {:ls-key 29
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x03 0x07 0x01 0x02 0x01 0x03 0x0C 0x01 0x00]
     :type :int16
     :scale pos-delta-scaler}
    :offset-corner-lat-point-3
    {:ls-key 30
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x03 0x07 0x01 0x02 0x01 0x03 0x09 0x01 0x00]
     :type :int16
     :scale pos-delta-scaler}
    :offset-corner-lon-point-3
    {:ls-key 31
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x03 0x07 0x01 0x02 0x01 0x03 0x0D 0x01 0x00]
     :type :int16
     :scale pos-delta-scaler}
    :offset-corner-lat-point-4
    {:ls-key 32
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x03 0x07 0x01 0x02 0x01 0x03 0x0A 0x01 0x00]
     :type :int16
     :scale pos-delta-scaler}
    :offset-corner-lon-point-4
    {:ls-key 33
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x03 0x07 0x01 0x02 0x01 0x03 0x0E 0x01 0x00]
     :type :int16
     :scale pos-delta-scaler}
    :icing-detected
-   {:ls-key 34
-    :type :ubyte}
+   {:ls-key 34 :type :ubyte}
    :wind-direction
-   {:ls-key 35
-    :type :uint16
-    :scale (scaler 0 65535 0 360)}
+   {:ls-key 35 :type :uint16 :scale (scaler 0 65535 0 360)}
    :wind-speed
-   {:ls-key 36
-    :type :ubyte
-    :scale (scaler 0 255 0 100)}
+   {:ls-key 36 :type :ubyte :scale (scaler 0 255 0 100)}
    :static-pressure
-   {:ls-key 37
-    :type :uint16
-    :scale pressure-scaler}
+   {:ls-key 37 :type :uint16 :scale pressure-scaler}
    :density-altitude
-   {:ls-key 38
+   {:ls-key 38 :type :uint16 :scale alt-scaler}
+   :outside-air-temp
+   {:ls-key 39 :type :byte}
+   :target-location-lat
+   {:ls-key 40 :type :int32 :scale lat-scaler}
+   :target-location-lon
+   {:ls-key 41 :type :int32 :scale lon-scaler}
+   :target-location-elevation
+   {:ls-key 42 :type :uint16 :scale alt-scaler}
+   :target-track-gate-width
+   {:ls-key 43 :type :ubyte}
+   :target-track-gate-height
+   {:ls-key 44 :type :ubyte}
+   :target-error-estimate-ce90
+   {:ls-key 45 :type :uint16}
+   :target-error-estimate-le90
+   {:ls-key 46 :type :uint16}
+   :generic-flag-data
+   {:ls-key 47 :type :ubyte}
+   ;; FIXME
+   :security-local-metadata-set
+   {:ls-key 48
+    :us-key [0x06 0x0E 0x2B 0x34 0x02 0x03 0x01 0x01 0x0E 0x01 0x03 0x03 0x02 0x00 0x00 0x00]
+    :type :ubyte}
+   :differential-pressure
+   {:ls-key 49 :type :uint16 :scale pressure-scaler}
+   :platform-aoa
+   {:ls-key 50 :type :int16 :scale pitch-scaler}
+   :platform-vertical-speed
+   {:ls-key 51 :type :int16 :scale (scaler -32767 32767 -180 180)}
+   :platform-sideslip-angle
+   {:ls-key 52 :type :int16 :scale (scaler -32767 32767 -20 20)}
+   :airfield-baro-pressure
+   {:ls-key 53 :type :uint16 :scale pressure-scaler}
+   :airfield-elevation
+   {:ls-key 54 :type :uint16 :scale alt-scaler}
+   :relative-humidity
+   {:ls-key 55 :type :uint8 :scale (scaler 0 255 0 100)}
+   :platform-ground-speed
+   {:ls-key 56 :type :ubyte}
+   :ground-range
+   {:ls-key 57 :type :uint32 :scale range-scaler}
+   :platform-fuel-remaining
+   {:ls-key 58 :type :uint16 :scale (scaler 0 65535 0 10000)}
+   :platform-call-sign
+   {:ls-key 59 :type (gloss/string :ascii)}
+   :weapon-load
+   {:ls-key 60 :type :uint16}
+   :weapon-fired
+   {:ls-key 61 :type :uint8}
+   :laser-prf-code
+   {:ls-key 62 :type :uint16}
+   :sensor-fov-name
+   {:ls-key 63 :type :ubyte}
+   :platform-magnetic-heading
+   {:ls-key 64 :type :uint16 :scale (scaler 0 65535 0 360)}
+   :uas-ls-version-number
+   {:ls-key 65 :type :ubyte}
+   ;; "TBD" in ST0601.8 spec.
+   :target-location-covariance-matrix {:ls-key 66 :type :ubyte}
+   :alternate-platform-lat {:ls-key 67 :type :int32 :scale lat-scaler}
+   :alternate-platform-lon {:ls-key 68 :type  :int32 :scale lon-scaler}
+   :alternate-platform-alt {:ls-key 69 :type :uint16 :scale alt-scaler}
+   :alternate-platform-name {:ls-key 70 :type (gloss/string :ascii)}
+   :alternate-platform-heading {:ls-key 71 :type :uint16 :scale (scaler 0 65535 0 360)}
+   :event-start-time-utc
+   {:ls-key 72
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x01 0x07 0x02 0x01 0x02 0x07 0x01 0x00 0x00]
+    :type :uint64}
+   :rvt-local-set
+   {:ls-key 73
+    :us-key [0x06 0x0E 0x2B 0x34 0x02 0x0B 0x01 0x01 0x0E 0x01 0x03 0x01 0x02 0x00 0x00 0x00]
+    ;; FIXME
+    :type :ubyte}
+   :vmti-data-set
+   {:ls-key 74
+    :us-key [0x06 0x0E 0x2B 0x34 0x02 0x0B 0x01 0x01 0x0E 0x01 0x03 0x03 0x06 0x00 0x00 0x00]
+    :type :ubyte}
+   :sensor-ellipsoid-height
+   {:ls-key 75
     :type :uint16
     :scale alt-scaler}
-   :outside-air-temp
-   {:ls-key 39
-    :type :byte}
-
+   :alternate-platform-ellipsoid-height
+   {:ls-key 76
+    :type :uint16
+    :scale alt-scaler}
+   :operational-mode
+   {:ls-key 77
+    :type :ubyte}
+   :frame-center-height-above-ellipsoid
+   {:ls-key 78
+    :type :uint16
+    :scale alt-scaler}
+   :sensor-north-velocity
+   {:ls-key 79
+    :type :int16
+    :scale (scaler 0 65535 -327 327)}
+   :sensor-east-velocity
+   {:ls-key 80
+    :type :int16
+    :scale (scaler 0 65535 -327 327)}
+   :image-horizon-pixel-pack
+   {:ls-key 81
+    ;; FIXME
+    :type :ubyte}
+   :corner-lat-point-1
+   {:ls-key 82
+    :type :int32
+    :scale lat-scaler}
+   :corner-lon-point-1
+   {:ls-key 83
+    :type :int32
+    :scale lon-scaler}
+   :corner-lat-point-2
+   {:ls-key 84
+    :type :int32
+    :scale lat-scaler}
+   :corner-lon-point-2
+   {:ls-key 85
+    :type :int32
+    :scale lon-scaler}
    })
 
 
@@ -415,91 +532,6 @@
         tag
         (recur (rest tags)))
       nil)))
-
-
-(def local-set-tags
-  (into
-   {}
-   (map
-    (fn [[tag [desc & codec-args]]]
-      [tag
-       [desc
-        (apply gloss/compile-frame codec-args)]])
-    {1 [:checksum :uint16]
-     2 [:unix-timestamp :uint64]
-     3 [:mission-id (gloss/string :ascii)]
-     4 [:platform-tail-number (gloss/string :ascii)]
-     5 [:platform-heading :uint16 nil (scaler 0 65535 0 360)]
-     6 [:platform-pitch :int16 nil pitch-scaler]
-     7 [:platform-roll :int16 nil (scaler -32767 32767 -50 50)]
-     8 [:platform-true-airspeed :ubyte]
-     9 [:platform-indicated-airspeed :ubyte]
-     10 [:platform-designation (gloss/string :ascii)]
-     11 [:image-source-sensor (gloss/string :ascii)]
-     12 [:image-coordinate-system (gloss/string :ascii)]
-     13 [:sensor-lat :int32 nil lat-scaler]
-     14 [:sensor-lon :int32 nil lon-scaler]
-     15 [:sensor-true-alt :uint16 nil alt-scaler]
-     16 [:sensor-horizontal-fov :uint16 nil (scaler 0 65535 0 180)]
-     17 [:sensor-vertical-fov :uint16 nil (scaler 0 65535 0 180)]
-     18 [:sensor-relative-azimuth :uint32 nil (scaler 0 4294967295 0 360)]
-     19 [:sensor-relative-elevation :int32 nil (scaler -2147483647 2147483647 -180 180)]
-     20 [:sensor-relative-roll :uint32 nil (scaler 0 4294967295 0 360)]
-     21 [:slant-range :uint32 nil range-scaler]
-     22 [:target-width :uint16 nil (scaler 0 65535 0 10000)]
-     23 [:frame-center-lat :int32 nil lat-scaler]
-     24 [:frame-center-lon :int32 nil lon-scaler]
-     25 [:frame-center-elevation :uint16 nil alt-scaler]
-     26 [:offset-corner-lat-point-1 :int16 nil pos-delta-scaler]
-     27 [:offset-corner-lon-point-1 :int16 nil pos-delta-scaler]
-     28 [:offset-corner-lat-point-2 :int16 nil pos-delta-scaler]
-     29 [:offset-corner-lon-point-2 :int16 nil pos-delta-scaler]
-     30 [:offset-corner-lat-point-3 :int16 nil pos-delta-scaler]
-     31 [:offset-corner-lon-point-3 :int16 nil pos-delta-scaler]
-     32 [:offset-corner-lat-point-4 :int16 nil pos-delta-scaler]
-     33 [:offset-corner-lon-point-4 :int16 nil pos-delta-scaler]
-     34 [:icing-detected :ubyte]
-     35 [:wind-direction :uint16 nil (scaler 0 65535 0 360)]
-     36 [:wind-speed :ubyte nil (scaler 0 255 0 100)]
-     37 [:static-pressure :uint16 nil pressure-scaler]
-     38 [:density-altitude :uint16 nil alt-scaler]
-     39 [:outside-air-temp :byte]
-     40 [:target-location-lat :int32 nil lat-scaler]
-     41 [:target-location-lon :int32 nil lon-scaler]
-     42 [:target-location-elevation :uint16 nil alt-scaler]
-     43 [:target-track-gate-width :ubyte]
-     44 [:target-track-gate-height :ubyte]
-     45 [:target-error-estimate-ce90 :uint16]
-     46 [:target-error-estimate-le90 :uint16]
-     47 [:generic-flag-data :ubyte]
-     ;; FIXME
-     48 [:security-local-metadata-set :ubyte]
-     49 [:differential-pressure :uint16 nil pressure-scaler]
-     50 [:platform-aoa :int16 nil pitch-scaler]
-     51 [:platform-vertical-speed :int16 nil (scaler -32767 32767 -180 180)]
-     52 [:platform-sideslip-angle :int16 nil (scaler -32767 32767 -20 20)]
-     53 [:airfield-baro-pressure :uint16 nil pressure-scaler]
-     54 [:airfield-elevation :uint16 nil alt-scaler]
-     55 [:relative-humidity :uint8 nil (scaler 0 255 0 100)]
-     56 [:platform-ground-speed :ubyte]
-     57 [:ground-range :uint32 nil range-scaler]
-     58 [:platform-fuel-remaining :uint16 nil (scaler 0 65535 0 10000)]
-     59 [:platform-call-sign (gloss/string :ascii)]
-     60 [:weapon-load :uint16]
-     61 [:weapon-fired :uint8]
-     62 [:laser-prf-code :uint16]
-     63 [:sensor-fov-name :ubyte]
-     64 [:platform-magnetic-heading :uint16 nil (scaler 0 65535 0 360)]
-     65 [:uas-ls-version-number :ubyte]
-     ;; "TBD" in ST0601.8 spec.
-     66 [:target-location-covariance-matrix :ubyte]
-     67 [:alternate-platform-lat :int32 nil lat-scaler]
-     68 [:alternate-platform-lon :int32 nil lon-scaler]
-     69 [:alternate-platform-alt :uint16 nil alt-scaler]
-     70 [:alternate-platform-name (gloss/string :ascii)]
-     71 [:alternate-platform-heading :uint16 nil (scaler 0 65535 0 360)]
-     72 [:event-start-time-utc :uint64]
-     })))
 
 
 (defn -main [& args]
