@@ -1,5 +1,5 @@
 (defproject com.lemondronor/droneklv "0.1.0-SNAPSHOT"
-  :description "FIXME: write description"
+  :description "Process KLV metadata embedded in drone video."
   :url "https:///github.com/wiseman/droneklv"
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}

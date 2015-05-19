@@ -14,20 +14,22 @@
 
 (defn- ints->bytes
   [ints]
-  (mapv (fn [i]
-          (let [i (int i)]
-            (byte
-             (cond (<= 0 i 127)
-                   i
-                   (<= 128 i 255)
-                   (- i 256)
-                   :else
-                   (throw (IllegalArgumentException.
-                           (format "Value out of range for byte: %s" i)))))))
+  (mapv #(let [i (int %)]
+           (byte
+            (cond
+              (<= 0 i 127)
+              i
+              (<= 128 i 255)
+              (- i 256)
+              :else
+              (throw (IllegalArgumentException.
+                      (format "Value out of range for byte: %s" i))))))
         ints))
 
 
-(defn klvs-from-bytes [^bytes data]
+(defn klvs-from-bytes
+  "Parses a byte array into a List of KLVs."
+  [^bytes data]
   (KLV/bytesToList
    data
    0
@@ -448,11 +450,10 @@
    {:ls-key 85
     :type :int32
     :scale lon-scaler}
-  :corner-lat-point-3
+   :corner-lat-point-3
    {:ls-key 86
     :type :int32
     :scale lat-scaler}
-   }
    :corner-lon-point-3
    {:ls-key 87
     :type :int32
@@ -467,10 +468,9 @@
     :scale lon-scaler}
    :platform-pitch-full
    {:ls-key 90
-    :type int32
+    :type :int32
     :scale full-pitch-scaler}
-   :platform-roll
-  )
+   })
 
 
 (def tags

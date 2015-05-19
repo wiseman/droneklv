@@ -3,8 +3,17 @@
             [com.lemondronor.droneklv :as droneklv]))
 
 
+(defmacro testable-privates [namespace & symbols]
+  (let [defs (map (fn [s] `(def ~s (ns-resolve '~namespace '~s))) symbols)]
+    `(do ~@defs)))
+
+
+(testable-privates
+ com.lemondronor.droneklv ints->bytes)
+
+
 (defn b [bytes]
-  (byte-array (droneklv/ints->bytes bytes)))
+  (byte-array (ints->bytes bytes)))
 
 
 (defn a= [a b eps]
@@ -247,6 +256,12 @@
       (is (= 3 off))
       (is (= :outside-air-temp tag))
       (is (= 84 temp))))
+  (testing "target location latitude"
+    (let [[off [tag lat]] (droneklv/decode-local-set-tag
+                           (b [0x28 0x04 0X8F 0x69 0x52 0x62]))]
+      (is (= 6 off))
+      (is (= :target-location-lat tag))
+      (is (a= -79.1638500518929 lat 1e-12 ))))
   )
 
 
