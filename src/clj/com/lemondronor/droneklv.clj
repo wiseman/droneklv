@@ -12,7 +12,7 @@
 (set! *warn-on-reflection* true)
 
 
-(defn ints->bytes
+(defn- ints->bytes
   [ints]
   (mapv (fn [i]
           (let [i (int i)]
@@ -58,7 +58,20 @@
 
 
 (defn defitems [item-specs]
-  (let [bb (fn [bs] (ByteBuffer/wrap (byte-array (ints->bytes bs))))]
+  (let [bb (fn [bs] (ByteBuffer/wrap (byte-array (ints->bytes bs))))
+        index (fn [key-name desc items]
+                (reduce-kv
+                 (fn [m name attr]
+                   (if-let [k (attr key-name)]
+                     (do
+                       (assert
+                        (nil? (m k))
+                        (str "Duplicate " desc " for item " name
+                             " and item " (m k) ": " k))
+                       (assoc m k attr))
+                     m))
+                 {}
+                 items))]
     (->> item-specs
          ;; Add name to attrs
          (map (fn [[name attr]]
@@ -84,35 +97,13 @@
                            #(gloss.io/decode frame % false)))
                         attr)]))
          (into {})
-         (swap! item-index assoc :items-by-name)))
-  ;; Index local set keys.
-  (swap! item-index assoc :local-set-keys
-         (reduce-kv
-          (fn [m name attr]
-            (if-let [ls-key (:ls-key attr)]
-              (do
-                (assert
-                 (nil? (m ls-key))
-                 (str "Duplicate local set key for item " name
-                      " and item " (m ls-key) ": " ls-key))
-                (assoc m ls-key attr))
-              m))
-          {}
-          (:items-by-name @item-index)))
-  ;; Index universal set keys.
-  (swap! item-index assoc :universal-set-keys
-         (reduce-kv
-          (fn [m name attr]
-            (if-let [us-key (:us-key attr)]
-              (do
-                (assert
-                 (nil? (m us-key))
-                 (str "Duplicate universal set key for item " name
-                      " and item " (m us-key) ": " us-key))
-                (assoc m us-key attr))
-              m))
-          {}
-          (:items-by-name @item-index))))
+         (swap! item-index assoc :items-by-name))
+    ;; Index local set keys.
+    (swap! item-index assoc :local-set-keys
+           (index :ls-key "local set key" (:items-by-name @item-index)))
+    ;; Index universal set keys.
+    (swap! item-index assoc :universal-set-keys
+           (index :us-key "universal set key" (:items-by-name @item-index)))))
 
 
 (defn scaler [src-min src-max dst-min dst-max]
@@ -179,6 +170,7 @@
 (def alt-scaler (scaler 0 65535 -900 19000))
 (def pressure-scaler (scaler 0 65535 0 5000))
 (def pitch-scaler (scaler -32767 32767 -20 20))
+(def full-pitch-scaler (scaler -32767 32767 -90 90))
 (def range-scaler (scaler 0 4294967295 0 5000000))
 
 
@@ -190,7 +182,10 @@
    {:us-key [0x06 0x0E 0x2B 0x34 0x02 0x0B 0x01 0x01 0x0E 0x01 0x03 0x01 0x01 0x00 0x00 0x00]
     :decoder decode-uas-datalink-local-dataset}
    :checksum
-   {:ls-key 1 :type :uint16}
+   {:ls-key 1
+    ;; Mapped
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x01 0x0E 0x01 0x02 0x03 0x01 0x00 0x00 0x00]
+    :type :uint16}
    :unix-timestamp
    {:ls-key 2
     :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x04 0x07 0x02 0x01 0x01 0x01 0x05 0x00 0x00]
@@ -200,7 +195,9 @@
     :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x01 0x01 0x05 0x05 0x00 0x00 0x00 0x00 0x00]
     :type (gloss/string :ascii)}
    :platform-tail-number
-   {:ls-key 4 :type (gloss/string :ascii)}
+   {:ls-key 4
+    :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x01 0x0E 0x01 0x04 0x01 0x02 0x00 0x00 0x00]
+    :type (gloss/string :ascii)}
    :platform-heading
    {:ls-key 5
     :us-key [0x06 0x0E 0x2B 0x34 0x01 0x01 0x01 0x07 0x07 0x01 0x10 0x01 0x06 0x00 0x00 0x00]
@@ -451,7 +448,29 @@
    {:ls-key 85
     :type :int32
     :scale lon-scaler}
-   })
+  :corner-lat-point-3
+   {:ls-key 86
+    :type :int32
+    :scale lat-scaler}
+   }
+   :corner-lon-point-3
+   {:ls-key 87
+    :type :int32
+    :scale lon-scaler}
+   :corner-lat-point-4
+   {:ls-key 88
+    :type :int32
+    :scale lat-scaler}
+   :corner-lon-point-4
+   {:ls-key 89
+    :type :int32
+    :scale lon-scaler}
+   :platform-pitch-full
+   {:ls-key 90
+    :type int32
+    :scale full-pitch-scaler}
+   :platform-roll
+  )
 
 
 (def tags
